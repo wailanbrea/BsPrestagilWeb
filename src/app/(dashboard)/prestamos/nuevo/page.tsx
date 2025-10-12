@@ -68,10 +68,10 @@ export default function NuevoPrestamoPage() {
       fechaInicio
     );
 
-    const totalIntereses = cronograma.reduce((sum, cuota) => sum + cuota.montoInteres, 0);
+    const totalIntereses = cronograma.reduce((sum, cuota) => sum + cuota.montoAInteres, 0);
     const montoCuota = tipoAmortizacion === 'FRANCES' 
       ? calcularMontoCuotaFija(monto, tasa, cuotas)
-      : cronograma[0].montoTotal;
+      : cronograma[0].montoCuotaMinimo;
 
     setSimulacion({
       cronograma,
@@ -336,16 +336,16 @@ export default function NuevoPrestamoPage() {
                     </thead>
                     <tbody>
                       {simulacion.cronograma.slice(0, 5).map((cuota: any) => (
-                        <tr key={cuota.numero} className="border-b">
-                          <td className="p-2">{cuota.numero}</td>
+                        <tr key={cuota.numeroCuota} className="border-b">
+                          <td className="p-2">{cuota.numeroCuota}</td>
                           <td className="p-2 text-right">
-                            ${cuota.montoCapital.toFixed(2)}
+                            ${cuota.montoACapital.toFixed(2)}
                           </td>
                           <td className="p-2 text-right">
-                            ${cuota.montoInteres.toFixed(2)}
+                            ${cuota.montoAInteres.toFixed(2)}
                           </td>
                           <td className="p-2 text-right font-medium">
-                            ${cuota.montoTotal.toFixed(2)}
+                            ${cuota.montoCuotaMinimo.toFixed(2)}
                           </td>
                         </tr>
                       ))}
