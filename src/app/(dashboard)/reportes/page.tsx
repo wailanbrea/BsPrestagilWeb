@@ -58,9 +58,9 @@ export default function ReportesPage() {
       const totalPrestamos = prestamos.length;
       const montoTotalPrestado = prestamos.reduce((sum, p) => sum + p.montoOriginal, 0);
       const totalPagos = pagos.length;
-      const montoCobrado = pagos.reduce((sum, p) => sum + p.monto, 0);
-      const capitalCobrado = pagos.reduce((sum, p) => sum + p.montoCapital, 0);
-      const interesesCobrados = pagos.reduce((sum, p) => sum + p.montoInteres, 0);
+      const montoCobrado = pagos.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
+      const capitalCobrado = pagos.reduce((sum, p) => sum + (p.montoACapital || 0), 0);
+      const interesesCobrados = pagos.reduce((sum, p) => sum + (p.montoAInteres || 0), 0);
 
       // Préstamos por estado
       const prestamosActivos = prestamos.filter((p) => p.estado === 'ACTIVO').length;
