@@ -1,0 +1,23 @@
+// src/constants/estados.ts
+export const ESTADOS_PRESTAMO = {
+  ACTIVO: 'ACTIVO',
+  COMPLETADO: 'COMPLETADO',
+  ATRASADO: 'ATRASADO',
+  CANCELADO: 'CANCELADO',
+} as const;
+
+export const ESTADOS_CUOTA = {
+  PENDIENTE: 'PENDIENTE',
+  PAGADA: 'PAGADA',
+  VENCIDA: 'VENCIDA',
+  PARCIAL: 'PARCIAL',
+  CANCELADA: 'CANCELADA',
+} as const;
+
+export const ESTADOS_GARANTIA = {
+  DISPONIBLE: 'DISPONIBLE',
+  EN_USO: 'EN_USO',
+  EJECUTADA: 'EJECUTADA',
+  DEVUELTA: 'DEVUELTA',
+} as const;
+
