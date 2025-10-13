@@ -83,10 +83,16 @@ export default function PagosPage() {
           <h1 className="text-3xl font-bold">Historial de Pagos</h1>
           <p className="text-muted-foreground">Consulta todos los pagos recibidos</p>
         </div>
-        <Button onClick={cargarPagos} disabled={loading} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => router.push('/pagos/nuevo')}>
+            <DollarSign className="h-4 w-4 mr-2" />
+            Registrar Pago
+          </Button>
+          <Button onClick={cargarPagos} disabled={loading} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
