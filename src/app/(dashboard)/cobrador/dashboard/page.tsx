@@ -100,6 +100,21 @@ export default function CobradorDashboardPage() {
       const comisionMes = totalCobradoMes * (porcentajeComision / 100);
       const comisionHoy = totalCobradoHoy * (porcentajeComision / 100);
 
+      // ⭐ Debug: Ver datos calculados
+      console.log('📊 Dashboard Cobrador - Datos calculados:', {
+        email: usuario?.email,
+        totalPagos: misPagos.length,
+        pagosHoy: pagosHoy.length,
+        pagosMes: pagosMes.length,
+        porcentajeComision,
+        totalCobrado,
+        totalCobradoHoy,
+        totalCobradoMes,
+        comisionTotal,
+        comisionMes,
+        comisionHoy,
+      });
+
       // 8. Calcular estadísticas adicionales
       const clientesAtrasados = prestamosData.filter(
         (p) => p.estado === 'ATRASADO'
