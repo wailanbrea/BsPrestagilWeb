@@ -48,3 +48,4 @@ export async function uploadGarantiaPhoto(
   return uploadFile(file, path);
 }
 
+

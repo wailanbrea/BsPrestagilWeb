@@ -32,3 +32,4 @@ export interface Usuario {
   lastSyncTime?: number;
   firebaseId?: string;
 }
+

@@ -41,3 +41,4 @@ export interface Garantia {
   clienteNombre?: string;
   prestamoId?: string;
 }
+

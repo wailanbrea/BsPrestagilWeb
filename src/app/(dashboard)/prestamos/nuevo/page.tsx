@@ -17,15 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useClientes } from '@/lib/hooks/useClientes';
-import { usePrestamos } from '@/lib/hooks/usePrestamos';
-import { generarCronograma, calcularMontoCuotaFija } from '@/lib/utils/amortizacion';
+import { calcularTablaAmortizacion, crearPrestamo as crearPrestamoFn } from '@/lib/firebase/functions';
+import type { CalcularTablaAmortizacionResult } from '@/lib/firebase/functions';
 import { TipoAmortizacion, FrecuenciaPago } from '@/types/prestamo';
 import { toast } from 'sonner';
 
 export default function NuevoPrestamoPage() {
   const router = useRouter();
   const { clientes, loading: loadingClientes } = useClientes();
-  const { crearPrestamo } = usePrestamos();
 
   const [formData, setFormData] = useState({
     clienteId: '',
@@ -37,11 +36,12 @@ export default function NuevoPrestamoPage() {
     notas: '',
   });
 
-  const [simulacion, setSimulacion] = useState<any>(null);
+  const [simulacion, setSimulacion] = useState<CalcularTablaAmortizacionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  const handleSimular = () => {
-    const { montoOriginal, tasaInteresPorPeriodo, numeroCuotas, frecuenciaPago, tipoAmortizacion } = formData;
+  const handleSimular = async () => {
+    const { montoOriginal, tasaInteresPorPeriodo, numeroCuotas, tipoAmortizacion } = formData;
 
     if (!montoOriginal || !tasaInteresPorPeriodo || !numeroCuotas) {
       toast.error('Completa todos los campos para simular');
@@ -57,32 +57,29 @@ export default function NuevoPrestamoPage() {
       return;
     }
 
-    const fechaInicio = Date.now();
-    const prestamoId = 'temp';
+    setIsSimulating(true);
 
-    const cronograma = generarCronograma(
-      prestamoId,
-      monto,
-      tasa,
-      cuotas,
-      tipoAmortizacion,
-      frecuenciaPago,
-      fechaInicio
-    );
+    try {
+      // ⭐ Usar la función de Firebase para calcular la tabla
+      const result = await calcularTablaAmortizacion({
+        capitalInicial: monto,
+        tasaInteresPorPeriodo: tasa,
+        numeroCuotas: cuotas,
+        tipoAmortizacion: tipoAmortizacion,
+      });
 
-    const totalIntereses = cronograma.reduce((sum, cuota) => sum + cuota.montoAInteres, 0);
-    const montoCuota = tipoAmortizacion === 'FRANCES' 
-      ? calcularMontoCuotaFija(monto, tasa, cuotas)
-      : cronograma[0].montoCuotaMinimo;
-
-    setSimulacion({
-      cronograma,
-      totalIntereses,
-      montoCuota,
-      totalAPagar: monto + totalIntereses,
-    });
-
-    toast.success('Simulación generada');
+      if (result.success) {
+        setSimulacion(result);
+        toast.success('Simulación generada');
+      } else {
+        throw new Error('Error al calcular simulación');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error al generar simulación');
+      console.error('Error simulando préstamo:', error);
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,10 +100,11 @@ export default function NuevoPrestamoPage() {
     try {
       const cliente = clientes.find((c) => c.id === formData.clienteId);
 
-      await crearPrestamo({
+      // ⭐ Usar la función de Firebase para crear el préstamo
+      const result = await crearPrestamoFn({
         clienteId: formData.clienteId,
         clienteNombre: cliente?.nombre || '',
-        montoOriginal: parseFloat(formData.montoOriginal),
+        monto: parseFloat(formData.montoOriginal),
         tasaInteresPorPeriodo: parseFloat(formData.tasaInteresPorPeriodo),
         frecuenciaPago: formData.frecuenciaPago,
         tipoAmortizacion: formData.tipoAmortizacion,
@@ -114,10 +112,15 @@ export default function NuevoPrestamoPage() {
         notas: formData.notas,
       });
 
-      toast.success('Préstamo creado exitosamente');
-      router.push('/prestamos');
+      if (result.success) {
+        toast.success(`Préstamo creado exitosamente con ${result.cuotasCreadas} cuotas`);
+        router.push('/prestamos');
+      } else {
+        throw new Error(result.mensaje || 'Error al crear préstamo');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Error al crear préstamo');
+      console.error('Error creando préstamo:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -269,9 +272,15 @@ export default function NuevoPrestamoPage() {
               />
             </div>
 
-            <Button type="button" variant="outline" onClick={handleSimular} className="w-full">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleSimular} 
+              className="w-full"
+              disabled={isSimulating}
+            >
               <Calculator className="mr-2 h-4 w-4" />
-              Simular Préstamo
+              {isSimulating ? 'Simulando...' : 'Simular Préstamo'}
             </Button>
           </CardContent>
         </Card>
@@ -287,7 +296,7 @@ export default function NuevoPrestamoPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Monto del préstamo</p>
                   <p className="text-2xl font-bold">
-                    ${parseFloat(formData.montoOriginal).toLocaleString('es-MX', {
+                    ${simulacion.resumen.capitalInicial.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -295,7 +304,7 @@ export default function NuevoPrestamoPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total a pagar</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    ${simulacion.totalAPagar.toLocaleString('es-MX', {
+                    ${simulacion.resumen.totalAPagar.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -303,7 +312,7 @@ export default function NuevoPrestamoPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total intereses</p>
                   <p className="text-2xl font-bold text-green-600">
-                    ${simulacion.totalIntereses.toLocaleString('es-MX', {
+                    ${simulacion.resumen.totalIntereses.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -315,7 +324,7 @@ export default function NuevoPrestamoPage() {
                       : 'Primera cuota'}
                   </p>
                   <p className="text-2xl font-bold">
-                    ${simulacion.montoCuota.toLocaleString('es-MX', {
+                    ${simulacion.resumen.montoCuotaFija.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -324,7 +333,7 @@ export default function NuevoPrestamoPage() {
 
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-2">
-                  Cronograma ({simulacion.cronograma.length} cuotas)
+                  Cronograma ({simulacion.tabla.length} cuotas)
                 </p>
                 <div className="max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -334,28 +343,32 @@ export default function NuevoPrestamoPage() {
                         <th className="p-2 text-right">Capital</th>
                         <th className="p-2 text-right">Interés</th>
                         <th className="p-2 text-right">Total</th>
+                        <th className="p-2 text-right">Balance</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {simulacion.cronograma.slice(0, 5).map((cuota: any) => (
+                      {simulacion.tabla.slice(0, 5).map((cuota) => (
                         <tr key={cuota.numeroCuota} className="border-b">
                           <td className="p-2">{cuota.numeroCuota}</td>
                           <td className="p-2 text-right">
-                            ${cuota.montoACapital.toFixed(2)}
+                            ${cuota.capital.toFixed(2)}
                           </td>
                           <td className="p-2 text-right">
-                            ${cuota.montoAInteres.toFixed(2)}
+                            ${cuota.interes.toFixed(2)}
                           </td>
                           <td className="p-2 text-right font-medium">
-                            ${cuota.montoCuotaMinimo.toFixed(2)}
+                            ${cuota.cuotaFija.toFixed(2)}
+                          </td>
+                          <td className="p-2 text-right text-muted-foreground">
+                            ${cuota.balanceRestante.toFixed(2)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {simulacion.cronograma.length > 5 && (
+                  {simulacion.tabla.length > 5 && (
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                      ... y {simulacion.cronograma.length - 5} cuotas más
+                      ... y {simulacion.tabla.length - 5} cuotas más
                     </p>
                   )}
                 </div>

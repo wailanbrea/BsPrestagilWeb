@@ -51,8 +51,11 @@ export default function CobradorDashboardPage() {
     try {
       setLoading(true);
 
-      // 1. ⭐ Usar Cloud Function para calcular comisiones
-      const comisionesResult = await calcularComisiones(usuario?.id || '');
+      // 1. ⭐ Usar Cloud Function para calcular comisiones (nueva interfaz)
+      const comisionesResult = await calcularComisiones({
+        cobradorId: usuario?.id,
+        incluirDetalles: false,
+      });
 
       console.log('📊 Comisiones desde Cloud Function:', comisionesResult);
 
@@ -82,17 +85,17 @@ export default function CobradorDashboardPage() {
         return sum;
       }, 0);
 
-      // 4. Actualizar estado con datos de la Cloud Function
+      // 4. Actualizar estado con datos de la Cloud Function (nueva interfaz)
       setStats({
         prestamosAsignados: prestamosData.length,
         totalACobrarHoy,
-        pagosCobradosHoy: comisionesResult.totalCobrado, // Total cobrado del cobrador
+        pagosCobradosHoy: comisionesResult.hoy.totalCobrado,
         clientesAtrasados,
         porcentajeComision: comisionesResult.porcentajeComision,
-        comisionTotal: comisionesResult.comisionTotal,
-        comisionMes: comisionesResult.comisionMes,
-        comisionHoy: comisionesResult.comisionHoy,
-        totalCobrado: comisionesResult.totalCobrado,
+        comisionTotal: comisionesResult.total.comision,
+        comisionMes: comisionesResult.mes.comision,
+        comisionHoy: comisionesResult.hoy.comision,
+        totalCobrado: comisionesResult.total.totalCobrado,
       });
     } catch (error) {
       console.error('Error loading cobrador data:', error);

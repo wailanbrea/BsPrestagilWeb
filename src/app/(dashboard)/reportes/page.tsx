@@ -2,97 +2,33 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FileText, Download, Calendar, TrendingUp, DollarSign, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { Prestamo } from '@/types/prestamo';
-import { Pago } from '@/types/pago';
+import { generarReporteCobradores, type GenerarReporteCobradoresResult } from '@/lib/firebase/functions';
 import { toast } from 'sonner';
 
 export default function ReportesPage() {
   const [loading, setLoading] = useState(false);
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [fechaFin, setFechaFin] = useState('');
-  const [reporte, setReporte] = useState<any>(null);
+  const [periodo, setPeriodo] = useState<'SEMANA' | 'MES' | 'TOTAL'>('MES');
+  const [reporte, setReporte] = useState<GenerarReporteCobradoresResult | null>(null);
 
   const generarReporte = async () => {
-    if (!fechaInicio || !fechaFin) {
-      toast.error('Selecciona un rango de fechas');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const inicio = new Date(fechaInicio).getTime();
-      const fin = new Date(fechaFin).getTime();
-
-      // Obtener préstamos del período
-      const prestamosQuery = query(
-        collection(db, 'prestamos'),
-        where('fechaInicio', '>=', inicio),
-        where('fechaInicio', '<=', fin)
-      );
-      const prestamosSnapshot = await getDocs(prestamosQuery);
-      const prestamos = prestamosSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Prestamo[];
-
-      // Obtener pagos del período
-      const pagosQuery = query(
-        collection(db, 'pagos'),
-        where('fechaPago', '>=', inicio),
-        where('fechaPago', '<=', fin)
-      );
-      const pagosSnapshot = await getDocs(pagosQuery);
-      const pagos = pagosSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Pago[];
-
-      // Calcular estadísticas
-      const totalPrestamos = prestamos.length;
-      const montoTotalPrestado = prestamos.reduce((sum, p) => sum + p.montoOriginal, 0);
-      const totalPagos = pagos.length;
-      const montoCobrado = pagos.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
-      const capitalCobrado = pagos.reduce((sum, p) => sum + (p.montoACapital || 0), 0);
-      const interesesCobrados = pagos.reduce((sum, p) => sum + (p.montoAInteres || 0), 0);
-
-      // Préstamos por estado
-      const prestamosActivos = prestamos.filter((p) => p.estado === 'ACTIVO').length;
-      const prestamosAtrasados = prestamos.filter((p) => p.estado === 'ATRASADO').length;
-      const prestamosCompletados = prestamos.filter((p) => p.estado === 'COMPLETADO').length;
-
-      setReporte({
-        periodo: {
-          inicio: fechaInicio,
-          fin: fechaFin,
-        },
-        prestamos: {
-          total: totalPrestamos,
-          activos: prestamosActivos,
-          atrasados: prestamosAtrasados,
-          completados: prestamosCompletados,
-          montoTotal: montoTotalPrestado,
-        },
-        pagos: {
-          total: totalPagos,
-          montoCobrado,
-          capitalCobrado,
-          interesesCobrados,
-        },
-        detalles: {
-          prestamos,
-          pagos,
-        },
-      });
-
+      // ⭐ Usar Cloud Function para generar reporte de cobradores
+      const result = await generarReporteCobradores({ periodo });
+      setReporte(result);
       toast.success('Reporte generado exitosamente');
     } catch (error) {
       console.error('Error al generar reporte:', error);
@@ -114,34 +50,29 @@ export default function ReportesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Reportes</h1>
-        <p className="text-muted-foreground">Genera reportes detallados de tu negocio</p>
+        <h1 className="text-3xl font-bold">Reportes de Cobradores</h1>
+        <p className="text-muted-foreground">Genera reportes de comisiones y desempeño</p>
       </div>
 
       {/* Generador de Reportes */}
       <Card>
         <CardHeader>
-          <CardTitle>Generar Reporte por Período</CardTitle>
+          <CardTitle>Generar Reporte de Cobradores</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fechaInicio">Fecha Inicio</Label>
-              <Input
-                id="fechaInicio"
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fechaFin">Fecha Fin</Label>
-              <Input
-                id="fechaFin"
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
+              <Label htmlFor="periodo">Período</Label>
+              <Select value={periodo} onValueChange={(value: any) => setPeriodo(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SEMANA">Última Semana</SelectItem>
+                  <SelectItem value="MES">Último Mes</SelectItem>
+                  <SelectItem value="TOTAL">Total Histórico</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-end">
               <Button onClick={generarReporte} disabled={loading} className="w-full">
@@ -155,95 +86,122 @@ export default function ReportesPage() {
       {/* Reporte Generado */}
       {reporte && (
         <>
-          {/* Resumen de Préstamos */}
+          {/* Resumen del Período */}
           <div>
-            <h2 className="text-xl font-bold mb-4">Resumen del Período</h2>
+            <h2 className="text-xl font-bold mb-4">
+              Resumen del Período: {reporte.periodo}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {new Date(reporte.fechaInicio).toLocaleDateString('es-MX')} - {new Date(reporte.fechaFin).toLocaleDateString('es-MX')}
+            </p>
             <div className="grid gap-4 md:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Préstamos Otorgados</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Total Cobrado</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{reporte.prestamos.total}</div>
-                  <p className="text-xs text-muted-foreground">
-                    ${reporte.prestamos.montoTotal.toLocaleString('es-MX', {
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    ${reporte.totales.totalCobrado.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {reporte.totales.numeroPagos} pagos
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Pagos</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Total Comisiones</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{reporte.pagos.total}</div>
-                  <p className="text-xs text-muted-foreground">
-                    ${reporte.pagos.montoCobrado.toLocaleString('es-MX', {
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    ${reporte.totales.totalComisiones.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Generadas
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Capital Cobrado</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Comisiones Pendientes</CardTitle>
+                  <DollarSign className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${reporte.pagos.capitalCobrado.toLocaleString('es-MX', {
+                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                    ${reporte.totales.totalComisionesPendientes.toLocaleString('es-MX', {
                       minimumFractionDigits: 2,
                     })}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Por pagar
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Intereses Cobrados</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Cobradores</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${reporte.pagos.interesesCobrados.toLocaleString('es-MX', {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
+                  <div className="text-2xl font-bold">{reporte.cobradores.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Total de cobradores
+                  </p>
                 </CardContent>
               </Card>
             </div>
           </div>
 
-          {/* Estado de Préstamos */}
+          {/* Tabla de Cobradores */}
           <Card>
             <CardHeader>
-              <CardTitle>Estado de Préstamos</CardTitle>
+              <CardTitle>Detalle por Cobrador</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg border border-green-500/20">
-                  <p className="text-sm text-muted-foreground">Activos</p>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                    {reporte.prestamos.activos}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20">
-                  <p className="text-sm text-muted-foreground">Atrasados</p>
-                  <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-                    {reporte.prestamos.atrasados}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
-                  <p className="text-sm text-muted-foreground">Completados</p>
-                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {reporte.prestamos.completados}
-                  </p>
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-3">Cobrador</th>
+                      <th className="text-right p-3">% Comisión</th>
+                      <th className="text-right p-3">Total Cobrado</th>
+                      <th className="text-right p-3">Pagos</th>
+                      <th className="text-right p-3">Comisión Generada</th>
+                      <th className="text-right p-3">Comisión Pendiente</th>
+                      <th className="text-right p-3">Préstamos Activos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reporte.cobradores.map((cobrador) => (
+                      <tr key={cobrador.cobradorId} className="border-b hover:bg-accent">
+                        <td className="p-3 font-medium">{cobrador.cobradorNombre}</td>
+                        <td className="p-3 text-right">{cobrador.porcentajeComision}%</td>
+                        <td className="p-3 text-right text-green-600 dark:text-green-400">
+                          ${cobrador.totalCobrado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3 text-right">{cobrador.numeroPagos}</td>
+                        <td className="p-3 text-right text-blue-600 dark:text-blue-400 font-semibold">
+                          ${cobrador.comisionGenerada.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3 text-right text-yellow-600 dark:text-yellow-400">
+                          ${cobrador.comisionPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3 text-right">
+                          {cobrador.prestamosActivos} / {cobrador.prestamosAsignados}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -275,7 +233,7 @@ export default function ReportesPage() {
           <CardContent className="py-12 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
-              Selecciona un rango de fechas y genera un reporte para ver los resultados
+              Selecciona un período y genera un reporte para ver el desempeño de los cobradores
             </p>
           </CardContent>
         </Card>

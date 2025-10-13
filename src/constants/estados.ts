@@ -21,3 +21,4 @@ export const ESTADOS_GARANTIA = {
   DEVUELTA: 'DEVUELTA',
 } as const;
 
+

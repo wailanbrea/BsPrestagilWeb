@@ -6,6 +6,13 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { crearCobrador } from '@/lib/firebase/functions';
@@ -24,7 +31,8 @@ export default function NuevoCobradorPage() {
     nombre: '',
     email: '',
     telefono: '',
-    porcentajeComision: '5',
+    rol: 'COBRADOR' as 'ADMIN' | 'COBRADOR' | 'SUPERVISOR',
+    password: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +51,7 @@ export default function NuevoCobradorPage() {
 
     try {
       // Validar campos
-      if (!formData.nombre || !formData.email || !formData.telefono) {
+      if (!formData.nombre || !formData.email || !formData.telefono || !formData.password) {
         throw new Error('Todos los campos son requeridos');
       }
 
@@ -53,27 +61,31 @@ export default function NuevoCobradorPage() {
         throw new Error('Email inválido');
       }
 
-      // ⭐ Llamar a la Cloud Function
+      // Validar contraseña (mínimo 6 caracteres)
+      if (formData.password.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+
+      // ⭐ Llamar a la Cloud Function con la nueva interfaz
       const result = await crearCobrador({
         nombre: formData.nombre,
         email: formData.email,
         telefono: formData.telefono,
-        porcentajeComision: parseFloat(formData.porcentajeComision) || 5,
+        rol: formData.rol,
+        password: formData.password,
       });
 
       if (result.success) {
         // Guardar credenciales para mostrar en el diálogo
         setCredencialesGeneradas({
-          email: result.email || formData.email,
-          password: result.password || '',
+          email: result.usuario.email,
+          password: formData.password,
         });
         
         // Mostrar diálogo de éxito
         setShowSuccessDialog(true);
         
         toast.success('Cobrador creado exitosamente');
-      } else {
-        throw new Error(result.message || 'Error al crear cobrador');
       }
     } catch (err: any) {
       console.error('Error creating cobrador:', err);
@@ -142,7 +154,7 @@ export default function NuevoCobradorPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Se generará una contraseña automáticamente
+                  Email para acceder al sistema
                 </p>
               </div>
 
@@ -161,19 +173,41 @@ export default function NuevoCobradorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="porcentajeComision">Porcentaje de Comisión (%)</Label>
-                <Input
-                  id="porcentajeComision"
-                  type="number"
-                  step="0.01"
-                  placeholder="5.00"
-                  value={formData.porcentajeComision}
-                  onChange={(e) =>
-                    setFormData({ ...formData, porcentajeComision: e.target.value })
+                <Label htmlFor="rol">Rol *</Label>
+                <Select
+                  value={formData.rol}
+                  onValueChange={(value: 'ADMIN' | 'COBRADOR' | 'SUPERVISOR') =>
+                    setFormData({ ...formData, rol: value })
                   }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COBRADOR">Cobrador</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+                    <SelectItem value="ADMIN">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona el rol del usuario
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Porcentaje de comisión por cada pago cobrado
+                  Contraseña temporal (mínimo 6 caracteres)
                 </p>
               </div>
             </CardContent>
@@ -185,10 +219,10 @@ export default function NuevoCobradorPage() {
               <CardTitle className="text-sm">ℹ️ Información Importante</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>• Se creará un usuario con acceso limitado al sistema</p>
-              <p>• El cobrador recibirá credenciales de acceso</p>
-              <p>• En el primer inicio de sesión deberá cambiar su contraseña</p>
-              <p>• Solo podrá ver los préstamos asignados a él</p>
+              <p>• Se creará un usuario con el rol seleccionado</p>
+              <p>• El usuario recibirá las credenciales proporcionadas</p>
+              <p>• Guarda la contraseña generada, se mostrará solo una vez</p>
+              <p>• Los cobradores solo podrán ver préstamos asignados a ellos</p>
             </CardContent>
           </Card>
 

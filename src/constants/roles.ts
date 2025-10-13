@@ -14,3 +14,4 @@ export const TIPOS_GARANTIA = {
   OTRO: 'OTRO',
 } as const;
 
+

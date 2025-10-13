@@ -2,59 +2,68 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Calendar, DollarSign } from 'lucide-react';
+import { Search, Calendar, DollarSign, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { Pago } from '@/types/pago';
-import { useEffect } from 'react';
+import { obtenerHistorialPagos, type ObtenerHistorialPagosResult } from '@/lib/firebase/functions';
+import { toast } from 'sonner';
 
 export default function PagosPage() {
   const router = useRouter();
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<ObtenerHistorialPagosResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
   useEffect(() => {
-    // Sin orderBy para evitar requerir índice
-    const q = collection(db, 'pagos');
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const pagosData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Pago[];
-
-      // Ordenar en el cliente
-      pagosData.sort((a, b) => b.fechaPago - a.fechaPago);
-
-      setPagos(pagosData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    cargarPagos();
   }, []);
 
-  const pagosFiltrados = pagos.filter((pago) => {
+  const cargarPagos = async () => {
+    setLoading(true);
+    try {
+      // ⭐ Usar Cloud Function para obtener historial de pagos
+      const filtros: any = { limite: 100 };
+      
+      if (fechaInicio) {
+        filtros.fechaInicio = new Date(fechaInicio).getTime();
+      }
+      if (fechaFin) {
+        filtros.fechaFin = new Date(fechaFin).getTime();
+      }
+
+      const result = await obtenerHistorialPagos(filtros);
+      setData(result);
+    } catch (error) {
+      console.error('Error cargando pagos:', error);
+      toast.error('Error al cargar pagos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const aplicarFiltros = () => {
+    cargarPagos();
+  };
+
+  const limpiarFiltros = () => {
+    setFechaInicio('');
+    setFechaFin('');
+    setSearchTerm('');
+  };
+
+  const pagosFiltrados = data?.pagos.filter((pago) => {
     const term = searchTerm.toLowerCase();
     return (
-      pago.id?.toLowerCase().includes(term) ||
-      pago.metodoPago?.toLowerCase().includes(term) ||
-      pago.prestamoId?.toLowerCase().includes(term)
+      pago.clienteNombre?.toLowerCase().includes(term) ||
+      pago.metodoPago?.toLowerCase().includes(term)
     );
-  });
-
-  const estadisticas = {
-    totalPagos: pagos.length,
-    totalMonto: pagos.reduce((sum, p) => sum + (p.montoPagado || 0), 0),
-    totalCapital: pagos.reduce((sum, p) => sum + (p.montoACapital || 0), 0),
-    totalIntereses: pagos.reduce((sum, p) => sum + (p.montoAInteres || 0), 0),
-    totalMora: pagos.reduce((sum, p) => sum + (p.montoMora || 0), 0),
-  };
+  }) || [];
 
   if (loading) {
     return (

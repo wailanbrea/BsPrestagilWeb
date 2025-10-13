@@ -46,16 +46,19 @@ export default function CobradoresPage() {
         ...doc.data(),
       })) as Usuario[];
 
-      // 2. ⭐ Calcular comisiones para cada cobrador usando Cloud Function
+      // 2. ⭐ Calcular comisiones para cada cobrador usando Cloud Function (nueva interfaz)
       const cobradoresConComisionesPromises = cobradoresData.map(async (cobrador) => {
         try {
-          // Llamar a Cloud Function para calcular comisiones
-          const comisionesResult = await calcularComisiones(cobrador.id);
+          // Llamar a Cloud Function para calcular comisiones con la nueva interfaz
+          const comisionesResult = await calcularComisiones({
+            cobradorId: cobrador.id,
+            incluirDetalles: false,
+          });
 
           return {
             ...cobrador,
-            totalComisionCalculada: comisionesResult.comisionTotal,
-            comisionPendiente: comisionesResult.comisionTotal - (cobrador.totalComisionesPagadas || 0),
+            totalComisionCalculada: comisionesResult.total.comision,
+            comisionPendiente: comisionesResult.total.comision - (cobrador.totalComisionesPagadas || 0),
           } as CobradorConComisiones;
         } catch (error) {
           console.error(`Error calculando comisiones para ${cobrador.nombre}:`, error);

@@ -2,9 +2,10 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClientes } from '@/lib/hooks/useClientes';
+import { buscarClientes, type ClienteBuscado } from '@/lib/firebase/functions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,12 +16,49 @@ export default function ClientesPage() {
   const router = useRouter();
   const { clientes, loading } = useClientes();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<ClienteBuscado[]>([]);
+  const [searching, setSearching] = useState(false);
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.telefono?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ⭐ Búsqueda con Firebase Cloud Function cuando hay término de búsqueda
+  useEffect(() => {
+    const searchWithFirebase = async () => {
+      if (searchTerm.trim().length >= 2) {
+        setSearching(true);
+        try {
+          const result = await buscarClientes({ 
+            query: searchTerm.trim(), 
+            limite: 20 
+          });
+          setSearchResults(result.clientes);
+        } catch (error) {
+          console.error('Error buscando clientes:', error);
+        } finally {
+          setSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    };
+
+    const debounce = setTimeout(() => {
+      searchWithFirebase();
+    }, 500);
+
+    return () => clearTimeout(debounce);
+  }, [searchTerm]);
+
+  // Mostrar resultados de búsqueda de Firebase o todos los clientes
+  const filteredClientes = searchTerm.trim().length >= 2 
+    ? searchResults.map(result => ({
+        id: result.id,
+        nombre: result.nombre,
+        telefono: result.telefono,
+        email: result.email,
+        direccion: result.direccion,
+        fechaRegistro: result.fechaRegistro,
+        activo: true,
+      }))
+    : clientes;
 
   if (loading) {
     return (
@@ -49,12 +87,22 @@ export default function ClientesPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, teléfono o documento..."
+              placeholder="Buscar por nombre, teléfono o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
+            {searching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              </div>
+            )}
           </div>
+          {searchTerm.trim().length >= 2 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {searchResults.length} resultado(s) encontrado(s)
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -150,4 +198,5 @@ export default function ClientesPage() {
     </div>
   );
 }
+
 

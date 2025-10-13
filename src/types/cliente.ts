@@ -44,3 +44,4 @@ export interface ClienteConPrestamos extends Cliente {
   totalDeuda: number;
   ultimoPago?: number;
 }
+
