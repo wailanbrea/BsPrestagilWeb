@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 /* ========================================
-   TEMA CLARO (Light Mode)
+   TEMA CLARO (Light Mode) - Mejorado
    ======================================== */
 :root {
-  --background: 0 0% 100%;              /* Blanco puro */
+  --background: 210 20% 98%;            /* Gris muy claro (más suave que blanco) */
   --foreground: 222.2 84% 4.9%;         /* Casi negro azulado */
   
-  --card: 0 0% 100%;                    /* Blanco para cards */
+  --card: 0 0% 100%;                    /* Blanco para cards (contraste) */
   --card-foreground: 222.2 84% 4.9%;
   
   --popover: 0 0% 100%;
