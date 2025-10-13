@@ -16,6 +16,12 @@ interface Stats {
   totalACobrarHoy: number;
   pagosCobradosHoy: number;
   clientesAtrasados: number;
+  // ⭐ Comisiones calculadas desde pagos
+  porcentajeComision: number;
+  comisionTotal: number;
+  comisionMes: number;
+  comisionHoy: number;
+  totalCobrado: number;
 }
 
 export default function CobradorDashboardPage() {
@@ -25,6 +31,11 @@ export default function CobradorDashboardPage() {
     totalACobrarHoy: 0,
     pagosCobradosHoy: 0,
     clientesAtrasados: 0,
+    porcentajeComision: 0,
+    comisionTotal: 0,
+    comisionMes: 0,
+    comisionHoy: 0,
+    totalCobrado: 0,
   });
   const [loading, setLoading] = useState(true);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
@@ -39,7 +50,10 @@ export default function CobradorDashboardPage() {
     try {
       setLoading(true);
 
-      // ⭐ Solo préstamos asignados a este cobrador
+      // 1. Obtener porcentaje de comisión del cobrador
+      const porcentajeComision = usuario?.porcentajeComision || 0;
+
+      // 2. ⭐ Solo préstamos asignados a este cobrador
       const prestamosQuery = query(
         collection(db, 'prestamos'),
         where('cobradorId', '==', usuario?.id)
@@ -53,29 +67,40 @@ export default function CobradorDashboardPage() {
 
       setPrestamos(prestamosData);
 
-      // Obtener pagos de hoy
+      // 3. ⭐ Obtener TODOS los pagos del cobrador (por email)
+      const todosPagosQuery = query(
+        collection(db, 'pagos'),
+        where('recibidoPor', '==', usuario?.email)
+      );
+
+      const todosPagosSnapshot = await getDocs(todosPagosQuery);
+      const misPagos = todosPagosSnapshot.docs.map((doc) => doc.data()) as Pago[];
+
+      // 4. ⭐ Calcular fechas (igual que Android)
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
-      const inicioDelDia = hoy.getTime();
+      const inicioHoy = hoy.getTime();
 
-      const pagosQuery = query(
-        collection(db, 'pagos'),
-        where('fechaPago', '>=', inicioDelDia),
-        where('recibidoPor', '==', usuario?.id)
-      );
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      inicioMes.setHours(0, 0, 0, 0);
+      const inicioMesTimestamp = inicioMes.getTime();
 
-      const pagosSnapshot = await getDocs(pagosQuery);
-      const pagosData = pagosSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Pago[];
+      // 5. ⭐ Filtrar pagos por período
+      const pagosHoy = misPagos.filter((p) => p.fechaPago >= inicioHoy);
+      const pagosMes = misPagos.filter((p) => p.fechaPago >= inicioMesTimestamp);
 
-      // Calcular estadísticas
-      const pagosCobradosHoy = pagosData.reduce(
-        (sum, pago) => sum + (pago.montoPagado || 0),
-        0
-      );
+      // 6. ⭐ Calcular totales cobrados
+      const totalCobrado = misPagos.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
+      const totalCobradoHoy = pagosHoy.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
+      const totalCobradoMes = pagosMes.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
 
+      // 7. ⭐ Calcular comisiones: Total Cobrado × (Porcentaje ÷ 100)
+      const comisionTotal = totalCobrado * (porcentajeComision / 100);
+      const comisionMes = totalCobradoMes * (porcentajeComision / 100);
+      const comisionHoy = totalCobradoHoy * (porcentajeComision / 100);
+
+      // 8. Calcular estadísticas adicionales
       const clientesAtrasados = prestamosData.filter(
         (p) => p.estado === 'ATRASADO'
       ).length;
@@ -83,7 +108,6 @@ export default function CobradorDashboardPage() {
       // Total a cobrar hoy (estimado)
       const totalACobrarHoy = prestamosData.reduce((sum, prestamo) => {
         if (prestamo.estado === 'ACTIVO') {
-          // Calcular cuota a cobrar hoy
           return sum + (prestamo.montoCuotaFija || 0);
         }
         return sum;
@@ -92,8 +116,13 @@ export default function CobradorDashboardPage() {
       setStats({
         prestamosAsignados: prestamosData.length,
         totalACobrarHoy,
-        pagosCobradosHoy,
+        pagosCobradosHoy: totalCobradoHoy,
         clientesAtrasados,
+        porcentajeComision,
+        comisionTotal,
+        comisionMes,
+        comisionHoy,
+        totalCobrado,
       });
     } catch (error) {
       console.error('Error loading cobrador data:', error);
@@ -118,6 +147,34 @@ export default function CobradorDashboardPage() {
           Bienvenido {usuario?.nombre}. Aquí están tus métricas del día.
         </p>
       </div>
+
+      {/* ⭐ Card de Comisión Total (destacada) */}
+      <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 border-blue-500/20">
+        <CardContent className="pt-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">💰</span>
+                <h2 className="text-lg font-semibold">Comisión Total</h2>
+              </div>
+              <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+                ${stats.comisionTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {stats.porcentajeComision}% de ${stats.totalCobrado.toLocaleString('es-MX')} cobrado
+              </p>
+            </div>
+            <div className="text-right space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Mes: <span className="font-semibold text-foreground">${stats.comisionMes.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+              </p>
+              <p className="text-sm text-green-600 dark:text-green-400 font-semibold">
+                Hoy: ${stats.comisionHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tarjetas de Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -11,62 +11,94 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Usuario } from '@/types/usuario';
+import { Pago } from '@/types/pago';
+
+// ⭐ Tipo extendido con comisiones calculadas
+interface CobradorConComisiones extends Usuario {
+  totalComisionCalculada: number;
+  comisionPendiente: number;
+}
 
 export default function CobradoresPage() {
   const router = useRouter();
-  const [cobradores, setCobradores] = useState<Usuario[]>([]);
+  const [cobradores, setCobradores] = useState<CobradorConComisiones[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Sin orderBy para evitar requerir índice
-    const q = query(
-      collection(db, 'usuarios'),
-      where('rol', '==', 'COBRADOR')
-    );
+    loadCobradoresConComisiones();
+  }, []);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cobradoresData = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        // ⭐ Debug: Ver qué datos llegan de Firestore
-        console.log('📊 Datos del cobrador:', doc.id, {
-          nombre: data.nombre,
-          totalComisionesGeneradas: data.totalComisionesGeneradas,
-          totalComisionesPagadas: data.totalComisionesPagadas,
-          porcentajeComision: data.porcentajeComision,
-        });
-        
+  // ⭐ Función para calcular comisiones desde pagos (igual que Android)
+  const loadCobradoresConComisiones = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Obtener todos los cobradores
+      const cobradoresQuery = query(
+        collection(db, 'usuarios'),
+        where('rol', '==', 'COBRADOR')
+      );
+      const cobradoresSnapshot = await getDocs(cobradoresQuery);
+      const cobradoresData = cobradoresSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Usuario[];
+
+      // 2. Obtener todos los pagos
+      const pagosSnapshot = await getDocs(collection(db, 'pagos'));
+      const todosPagos = pagosSnapshot.docs.map((doc) => doc.data()) as Pago[];
+
+      // 3. Calcular comisiones para cada cobrador
+      const cobradoresConComisiones = cobradoresData.map((cobrador) => {
+        // Filtrar pagos del cobrador (por email del recibidoPor)
+        const pagosCobrador = todosPagos.filter(
+          (pago) => pago.recibidoPor === cobrador.email
+        );
+
+        // Total cobrado por el cobrador
+        const totalCobrado = pagosCobrador.reduce(
+          (sum, pago) => sum + (pago.montoPagado || 0),
+          0
+        );
+
+        // Calcular comisión: Total Cobrado × (Porcentaje ÷ 100)
+        const porcentaje = cobrador.porcentajeComision || 0;
+        const totalComisionCalculada = totalCobrado * (porcentaje / 100);
+        const comisionPagada = cobrador.totalComisionesPagadas || 0;
+        const comisionPendiente = totalComisionCalculada - comisionPagada;
+
         return {
-          id: doc.id,
-          ...data,
-        } as Usuario;
+          ...cobrador,
+          totalComisionCalculada,
+          comisionPendiente,
+        } as CobradorConComisiones;
       });
 
-      // Ordenar en el cliente
-      cobradoresData.sort((a, b) => 
+      // Ordenar por nombre
+      cobradoresConComisiones.sort((a, b) =>
         (a.nombre || '').localeCompare(b.nombre || '')
       );
 
-      setCobradores(cobradoresData);
+      setCobradores(cobradoresConComisiones);
+    } catch (error) {
+      console.error('Error loading cobradores:', error);
+    } finally {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+    }
+  };
 
   const cobradoresFiltrados = cobradores.filter((cobrador) =>
     cobrador.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cobrador.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // ⭐ Estadísticas usando comisiones calculadas desde pagos
   const estadisticas = {
     total: cobradores.length,
     activos: cobradores.filter((c) => c.activo).length,
-    totalComisiones: cobradores.reduce((sum, c) => sum + (c.totalComisionesGeneradas || 0), 0),
-    comisionesPendientes: cobradores.reduce(
-      (sum, c) => sum + ((c.totalComisionesGeneradas || 0) - (c.totalComisionesPagadas || 0)),
-      0
-    ),
+    totalComisiones: cobradores.reduce((sum, c) => sum + (c.totalComisionCalculada || 0), 0),
+    comisionesPendientes: cobradores.reduce((sum, c) => sum + (c.comisionPendiente || 0), 0),
   };
 
   if (loading) {
@@ -153,9 +185,6 @@ export default function CobradoresPage() {
       {/* Grid de Cobradores */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cobradoresFiltrados.map((cobrador) => {
-          const comisionPendiente =
-            (cobrador.totalComisionesGeneradas || 0) - (cobrador.totalComisionesPagadas || 0);
-
           return (
             <Card
               key={cobrador.id}
@@ -193,7 +222,7 @@ export default function CobradoresPage() {
                   <div className="flex justify-between items-center pt-2 border-t">
                     <span className="text-sm text-muted-foreground">Comisiones generadas:</span>
                     <span className="font-bold text-green-600 dark:text-green-400">
-                      ${(cobrador.totalComisionesGeneradas || 0).toLocaleString('es-MX', {
+                      ${(cobrador.totalComisionCalculada || 0).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })}
                     </span>
@@ -206,11 +235,11 @@ export default function CobradoresPage() {
                       })}
                     </span>
                   </div>
-                  {comisionPendiente > 0 && (
+                  {cobrador.comisionPendiente > 0 && (
                     <div className="flex justify-between items-center pt-2 border-t">
                       <span className="text-sm font-medium">Pendiente de pago:</span>
                       <span className="font-bold text-yellow-600 dark:text-yellow-400">
-                        ${comisionPendiente.toLocaleString('es-MX', {
+                        ${cobrador.comisionPendiente.toLocaleString('es-MX', {
                           minimumFractionDigits: 2,
                         })}
                       </span>
