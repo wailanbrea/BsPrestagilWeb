@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ⭐ Función helper para obtener el rol del usuario autenticado
+    function getUserRole() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+    
+    // ⭐ Verificar si el usuario es PRESTAMISTA o ADMIN
+    function isPrestamista() {
+      let rol = getUserRole();
+      return rol == 'PRESTAMISTA' || rol == 'ADMIN';
+    }
+    
+    // ⭐ Verificar si el usuario es COBRADOR
+    function isCobrador() {
+      return getUserRole() == 'COBRADOR';
+    }
+    
+    // Usuarios: Solo pueden leer su propio documento
+    match /usuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if isPrestamista(); // Solo prestamistas pueden editar usuarios
+    }
+    
+    // Clientes: Cobradores solo lectura, prestamistas todo
+    match /clientes/{clienteId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isPrestamista();
+    }
+    
+    // Préstamos: Cobradores solo ven los asignados a ellos
+    match /prestamos/{prestamoId} {
+      allow read: if request.auth != null && (
+        isPrestamista() || 
+        (isCobrador() && resource.data.cobradorId == request.auth.uid)
+      );
+      allow create, update, delete: if isPrestamista();
+    }
+    
+    // Cuotas: Permisos similares a préstamos
+    match /cuotas/{cuotaId} {
+      allow read: if request.auth != null;
+      allow write: if isPrestamista();
+    }
+    
+    // Pagos: Todos pueden crear (cobradores registran pagos)
+    match /pagos/{pagoId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Cobradores pueden crear pagos
+      allow update, delete: if isPrestamista(); // Solo prestamistas editan/eliminan
+    }
+    
+    // Garantías: Solo prestamistas
+    match /garantias/{garantiaId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isPrestamista();
+    }
+    
+    // Configuración: Solo prestamistas pueden leer y escribir
+    match /configuracion/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isPrestamista();
+    }
+  }
+}
+
