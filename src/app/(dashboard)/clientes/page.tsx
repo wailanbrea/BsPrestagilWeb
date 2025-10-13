@@ -57,6 +57,11 @@ export default function ClientesPage() {
         direccion: result.direccion,
         fechaRegistro: result.fechaRegistro,
         activo: true,
+        prestamosActivos: result.prestamosActivos,
+        fotoUrl: '',
+        referencias: [],
+        historialPagos: 'AL_DIA' as const,
+        fechaCreacion: result.fechaRegistro,
       }))
     : clientes;
 

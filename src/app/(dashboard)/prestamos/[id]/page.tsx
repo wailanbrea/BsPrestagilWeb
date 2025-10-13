@@ -24,6 +24,8 @@ import {
 } from '@/lib/firebase/functions';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { Prestamo } from '@/types/prestamo';
+import { Usuario } from '@/types/usuario';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 
@@ -32,8 +34,8 @@ export default function PrestamoDetallePage() {
   const params = useParams();
   const prestamoId = params.id as string;
 
-  const [prestamo, setPrestamo] = useState<any>(null);
-  const [cobradores, setCobradores] = useState<any[]>([]);
+  const [prestamo, setPrestamo] = useState<Prestamo | null>(null);
+  const [cobradores, setCobradores] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para diálogos
@@ -64,7 +66,7 @@ export default function PrestamoDetallePage() {
       // Cargar préstamo
       const prestamoDoc = await getDoc(doc(db, 'prestamos', prestamoId));
       if (prestamoDoc.exists()) {
-        const prestamoData = { id: prestamoDoc.id, ...prestamoDoc.data() };
+        const prestamoData = { id: prestamoDoc.id, ...prestamoDoc.data() } as Prestamo;
         setPrestamo(prestamoData);
         setEditData({
           tasaInteresPorPeriodo: prestamoData.tasaInteresPorPeriodo?.toString() || '',
@@ -83,7 +85,7 @@ export default function PrestamoDetallePage() {
       const cobradoresData = cobradoresSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Usuario[];
       setCobradores(cobradoresData);
     } catch (error) {
       console.error('Error cargando datos:', error);
@@ -94,6 +96,8 @@ export default function PrestamoDetallePage() {
   };
 
   const handleActualizarPrestamo = async () => {
+    if (!prestamo) return;
+    
     try {
       setIsSubmitting(true);
 
@@ -133,6 +137,8 @@ export default function PrestamoDetallePage() {
   };
 
   const handleAsignarCobrador = async () => {
+    if (!prestamo) return;
+    
     try {
       if (!cobradorSeleccionado) {
         toast.error('Selecciona un cobrador');

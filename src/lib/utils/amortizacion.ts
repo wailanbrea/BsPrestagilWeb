@@ -1,6 +1,5 @@
 // src/lib/utils/amortizacion.ts
-import { TipoAmortizacion, FrecuenciaPago } from '@/types/prestamo';
-import { Cuota } from '@/types/cuota';
+import { TipoAmortizacion, FrecuenciaPago, Cuota } from '@/types/prestamo';
 
 const TOLERANCIA_DECIMAL = 0.01;
 
@@ -49,24 +48,22 @@ export function generarCronograma(
       }
       
       const fechaVencimiento = fechaInicio + (diasEntreCuotas * i * 24 * 60 * 60 * 1000);
+      const saldoFinal = Math.max(0, saldoPendiente - amortizacion);
       
       cuotas.push({
         id: `${prestamoId}_cuota_${i}`,
         prestamoId,
         numeroCuota: i,
         fechaVencimiento,
-        montoCuotaMinimo: interes,        // Mínimo a pagar (el interés)
-        capitalPendienteAlInicio: saldoPendiente,
-        montoPagado: 0,
+        montoCuotaMinimo: montoCuota,
+        capitalPendienteInicio: saldoPendiente,
+        capitalPendienteFinal: saldoFinal,
         montoAInteres: 0,
         montoACapital: 0,
-        montoMora: 0,
         estado: 'PENDIENTE',
-        notas: `Interés proyectado: $${interes.toFixed(2)}, Capital: $${amortizacion.toFixed(2)}`,
-        lastSyncTime: Date.now(),
       });
       
-      saldoPendiente = Math.max(0, saldoPendiente - amortizacion);
+      saldoPendiente = saldoFinal;
     }
   } else {
     // Sistema Alemán: Capital fijo
@@ -82,24 +79,23 @@ export function generarCronograma(
       }
       
       const fechaVencimiento = fechaInicio + (diasEntreCuotas * i * 24 * 60 * 60 * 1000);
+      const montoCuota = interes + amortizacion;
+      const saldoFinal = Math.max(0, saldoPendiente - amortizacion);
       
       cuotas.push({
         id: `${prestamoId}_cuota_${i}`,
         prestamoId,
         numeroCuota: i,
         fechaVencimiento,
-        montoCuotaMinimo: interes,        // Mínimo a pagar (el interés)
-        capitalPendienteAlInicio: saldoPendiente,
-        montoPagado: 0,
+        montoCuotaMinimo: montoCuota,
+        capitalPendienteInicio: saldoPendiente,
+        capitalPendienteFinal: saldoFinal,
         montoAInteres: 0,
         montoACapital: 0,
-        montoMora: 0,
         estado: 'PENDIENTE',
-        notas: `Interés proyectado: $${interes.toFixed(2)}, Capital: $${amortizacion.toFixed(2)}`,
-        lastSyncTime: Date.now(),
       });
       
-      saldoPendiente = Math.max(0, saldoPendiente - amortizacion);
+      saldoPendiente = saldoFinal;
     }
   }
   
@@ -134,15 +130,16 @@ export function recalcularCuotasFuturas(
         amortizacion = saldoPendiente;
       }
       
+      const saldoFinal = Math.max(0, saldoPendiente - amortizacion);
+      
       cuotasRecalculadas.push({
         ...cuota,
-        montoCuotaMinimo: interes,
-        capitalPendienteAlInicio: saldoPendiente,
-        notas: `Interés proyectado: $${interes.toFixed(2)}, Capital: $${amortizacion.toFixed(2)}`,
-        lastSyncTime: Date.now(),
+        montoCuotaMinimo: nuevaMontoCuota,
+        capitalPendienteInicio: saldoPendiente,
+        capitalPendienteFinal: saldoFinal,
       });
       
-      saldoPendiente = Math.max(0, saldoPendiente - amortizacion);
+      saldoPendiente = saldoFinal;
     });
   } else {
     // Sistema Alemán: reducir intereses
@@ -156,18 +153,19 @@ export function recalcularCuotasFuturas(
         amortizacion = saldoPendiente;
       }
       
+      const montoCuota = interes + amortizacion;
+      const saldoFinal = Math.max(0, saldoPendiente - amortizacion);
+      
       cuotasRecalculadas.push({
         ...cuota,
-        montoCuotaMinimo: interes,
-        capitalPendienteAlInicio: saldoPendiente,
-        notas: `Interés proyectado: $${interes.toFixed(2)}, Capital: $${amortizacion.toFixed(2)}`,
-        lastSyncTime: Date.now(),
+        montoCuotaMinimo: montoCuota,
+        capitalPendienteInicio: saldoPendiente,
+        capitalPendienteFinal: saldoFinal,
       });
       
-      saldoPendiente = Math.max(0, saldoPendiente - amortizacion);
+      saldoPendiente = saldoFinal;
     });
   }
   
   return cuotasRecalculadas;
 }
-

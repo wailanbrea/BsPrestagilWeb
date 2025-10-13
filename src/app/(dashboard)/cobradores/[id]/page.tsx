@@ -16,9 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { calcularComisiones, pagarComision } from '@/lib/firebase/functions';
+import { calcularComisiones, pagarComision, type CalcularComisionesResult } from '@/lib/firebase/functions';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { Usuario } from '@/types/usuario';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 
@@ -27,8 +28,8 @@ export default function CobradorDetallePage() {
   const params = useParams();
   const cobradorId = params.id as string;
 
-  const [cobrador, setCobrador] = useState<any>(null);
-  const [comisiones, setComisiones] = useState<any>(null);
+  const [cobrador, setCobrador] = useState<Usuario | null>(null);
+  const [comisiones, setComisiones] = useState<CalcularComisionesResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPagarDialog, setShowPagarDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,7 +53,7 @@ export default function CobradorDetallePage() {
       // Cargar cobrador
       const cobradorDoc = await getDoc(doc(db, 'usuarios', cobradorId));
       if (cobradorDoc.exists()) {
-        setCobrador({ id: cobradorDoc.id, ...cobradorDoc.data() });
+        setCobrador({ id: cobradorDoc.id, ...cobradorDoc.data() } as Usuario);
       }
 
       // ⭐ Calcular comisiones con Cloud Function
