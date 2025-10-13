@@ -26,10 +26,21 @@ export default function CobradoresPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cobradoresData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Usuario[];
+      const cobradoresData = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        // ⭐ Debug: Ver qué datos llegan de Firestore
+        console.log('📊 Datos del cobrador:', doc.id, {
+          nombre: data.nombre,
+          totalComisionesGeneradas: data.totalComisionesGeneradas,
+          totalComisionesPagadas: data.totalComisionesPagadas,
+          porcentajeComision: data.porcentajeComision,
+        });
+        
+        return {
+          id: doc.id,
+          ...data,
+        } as Usuario;
+      });
 
       // Ordenar en el cliente
       cobradoresData.sort((a, b) => 
