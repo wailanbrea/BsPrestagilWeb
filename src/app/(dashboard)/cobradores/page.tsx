@@ -12,8 +12,9 @@ import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase
 import { db } from '@/lib/firebase/config';
 import { Usuario } from '@/types/usuario';
 import { Pago } from '@/types/pago';
+import { calcularComisiones } from '@/lib/firebase/functions';
 
-// ⭐ Tipo extendido con comisiones calculadas
+// ⭐ Tipo extendido con comisiones calculadas desde Cloud Function
 interface CobradorConComisiones extends Usuario {
   totalComisionCalculada: number;
   comisionPendiente: number;
@@ -29,7 +30,7 @@ export default function CobradoresPage() {
     loadCobradoresConComisiones();
   }, []);
 
-  // ⭐ Función para calcular comisiones desde pagos (igual que Android)
+  // ⭐ Función para obtener cobradores con comisiones desde Cloud Function
   const loadCobradoresConComisiones = async () => {
     try {
       setLoading(true);
@@ -45,37 +46,31 @@ export default function CobradoresPage() {
         ...doc.data(),
       })) as Usuario[];
 
-      // 2. Obtener todos los pagos
-      const pagosSnapshot = await getDocs(collection(db, 'pagos'));
-      const todosPagos = pagosSnapshot.docs.map((doc) => doc.data()) as Pago[];
+      // 2. ⭐ Calcular comisiones para cada cobrador usando Cloud Function
+      const cobradoresConComisionesPromises = cobradoresData.map(async (cobrador) => {
+        try {
+          // Llamar a Cloud Function para calcular comisiones
+          const comisionesResult = await calcularComisiones(cobrador.id);
 
-      // 3. Calcular comisiones para cada cobrador
-      const cobradoresConComisiones = cobradoresData.map((cobrador) => {
-        // Filtrar pagos del cobrador (por email del recibidoPor)
-        const pagosCobrador = todosPagos.filter(
-          (pago) => pago.recibidoPor === cobrador.email
-        );
-
-        // Total cobrado por el cobrador
-        const totalCobrado = pagosCobrador.reduce(
-          (sum, pago) => sum + (pago.montoPagado || 0),
-          0
-        );
-
-        // Calcular comisión: Total Cobrado × (Porcentaje ÷ 100)
-        const porcentaje = cobrador.porcentajeComision || 0;
-        const totalComisionCalculada = totalCobrado * (porcentaje / 100);
-        const comisionPagada = cobrador.totalComisionesPagadas || 0;
-        const comisionPendiente = totalComisionCalculada - comisionPagada;
-
-        return {
-          ...cobrador,
-          totalComisionCalculada,
-          comisionPendiente,
-        } as CobradorConComisiones;
+          return {
+            ...cobrador,
+            totalComisionCalculada: comisionesResult.comisionTotal,
+            comisionPendiente: comisionesResult.comisionTotal - (cobrador.totalComisionesPagadas || 0),
+          } as CobradorConComisiones;
+        } catch (error) {
+          console.error(`Error calculando comisiones para ${cobrador.nombre}:`, error);
+          // En caso de error, retornar con comisiones en 0
+          return {
+            ...cobrador,
+            totalComisionCalculada: 0,
+            comisionPendiente: 0,
+          } as CobradorConComisiones;
+        }
       });
 
-      // Ordenar por nombre
+      const cobradoresConComisiones = await Promise.all(cobradoresConComisionesPromises);
+
+      // 3. Ordenar por nombre
       cobradoresConComisiones.sort((a, b) =>
         (a.nombre || '').localeCompare(b.nombre || '')
       );

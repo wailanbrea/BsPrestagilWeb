@@ -44,6 +44,24 @@ interface RegistrarPagoResult {
   message?: string;
 }
 
+interface CalcularComisionesData {
+  cobradorId: string;
+}
+
+interface CalcularComisionesResult {
+  success: boolean;
+  cobradorId: string;
+  porcentajeComision: number;
+  totalCobrado: number;
+  comisionTotal: number;
+  comisionHoy: number;
+  comisionMes: number;
+  totalPagos: number;
+  pagosHoy: number;
+  pagosMes: number;
+  message?: string;
+}
+
 /**
  * ⭐ Función para crear un cobrador con Firebase Cloud Function
  * 
@@ -112,6 +130,35 @@ export async function registrarPago(
   } catch (error: any) {
     console.error('Error calling registrarPago function:', error);
     throw new Error(error.message || 'Error al registrar pago');
+  }
+}
+
+/**
+ * ⭐ Función para calcular comisiones de un cobrador con Firebase Cloud Function
+ * 
+ * @param cobradorId - ID del cobrador
+ * @returns Resultado con comisiones calculadas (Total, Mes, Hoy)
+ * 
+ * @example
+ * const result = await calcularComisiones('cobrador123');
+ * console.log('Comisión total:', result.comisionTotal);
+ * console.log('Comisión del mes:', result.comisionMes);
+ * console.log('Comisión de hoy:', result.comisionHoy);
+ */
+export async function calcularComisiones(
+  cobradorId: string
+): Promise<CalcularComisionesResult> {
+  try {
+    const calcularComisionesFunction = httpsCallable<
+      CalcularComisionesData,
+      CalcularComisionesResult
+    >(functions, 'calcularComisiones');
+
+    const result = await calcularComisionesFunction({ cobradorId });
+    return result.data;
+  } catch (error: any) {
+    console.error('Error calling calcularComisiones function:', error);
+    throw new Error(error.message || 'Error al calcular comisiones');
   }
 }
 

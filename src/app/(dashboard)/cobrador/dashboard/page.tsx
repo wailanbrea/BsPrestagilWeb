@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartBar, DollarSign, Users, AlertCircle } from 'lucide-react';
 import { Prestamo } from '@/types/prestamo';
 import { Pago } from '@/types/pago';
+import { calcularComisiones } from '@/lib/firebase/functions';
 
 interface Stats {
   prestamosAsignados: number;
@@ -50,10 +51,12 @@ export default function CobradorDashboardPage() {
     try {
       setLoading(true);
 
-      // 1. Obtener porcentaje de comisión del cobrador
-      const porcentajeComision = usuario?.porcentajeComision || 0;
+      // 1. ⭐ Usar Cloud Function para calcular comisiones
+      const comisionesResult = await calcularComisiones(usuario?.id || '');
 
-      // 2. ⭐ Solo préstamos asignados a este cobrador
+      console.log('📊 Comisiones desde Cloud Function:', comisionesResult);
+
+      // 2. Obtener préstamos asignados
       const prestamosQuery = query(
         collection(db, 'prestamos'),
         where('cobradorId', '==', usuario?.id)
@@ -67,60 +70,11 @@ export default function CobradorDashboardPage() {
 
       setPrestamos(prestamosData);
 
-      // 3. ⭐ Obtener TODOS los pagos del cobrador (por email)
-      const todosPagosQuery = query(
-        collection(db, 'pagos'),
-        where('recibidoPor', '==', usuario?.email)
-      );
-
-      const todosPagosSnapshot = await getDocs(todosPagosQuery);
-      const misPagos = todosPagosSnapshot.docs.map((doc) => doc.data()) as Pago[];
-
-      // 4. ⭐ Calcular fechas (igual que Android)
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const inicioHoy = hoy.getTime();
-
-      const inicioMes = new Date();
-      inicioMes.setDate(1);
-      inicioMes.setHours(0, 0, 0, 0);
-      const inicioMesTimestamp = inicioMes.getTime();
-
-      // 5. ⭐ Filtrar pagos por período
-      const pagosHoy = misPagos.filter((p) => p.fechaPago >= inicioHoy);
-      const pagosMes = misPagos.filter((p) => p.fechaPago >= inicioMesTimestamp);
-
-      // 6. ⭐ Calcular totales cobrados
-      const totalCobrado = misPagos.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
-      const totalCobradoHoy = pagosHoy.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
-      const totalCobradoMes = pagosMes.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
-
-      // 7. ⭐ Calcular comisiones: Total Cobrado × (Porcentaje ÷ 100)
-      const comisionTotal = totalCobrado * (porcentajeComision / 100);
-      const comisionMes = totalCobradoMes * (porcentajeComision / 100);
-      const comisionHoy = totalCobradoHoy * (porcentajeComision / 100);
-
-      // ⭐ Debug: Ver datos calculados
-      console.log('📊 Dashboard Cobrador - Datos calculados:', {
-        email: usuario?.email,
-        totalPagos: misPagos.length,
-        pagosHoy: pagosHoy.length,
-        pagosMes: pagosMes.length,
-        porcentajeComision,
-        totalCobrado,
-        totalCobradoHoy,
-        totalCobradoMes,
-        comisionTotal,
-        comisionMes,
-        comisionHoy,
-      });
-
-      // 8. Calcular estadísticas adicionales
+      // 3. Calcular estadísticas de préstamos
       const clientesAtrasados = prestamosData.filter(
         (p) => p.estado === 'ATRASADO'
       ).length;
 
-      // Total a cobrar hoy (estimado)
       const totalACobrarHoy = prestamosData.reduce((sum, prestamo) => {
         if (prestamo.estado === 'ACTIVO') {
           return sum + (prestamo.montoCuotaFija || 0);
@@ -128,16 +82,17 @@ export default function CobradorDashboardPage() {
         return sum;
       }, 0);
 
+      // 4. Actualizar estado con datos de la Cloud Function
       setStats({
         prestamosAsignados: prestamosData.length,
         totalACobrarHoy,
-        pagosCobradosHoy: totalCobradoHoy,
+        pagosCobradosHoy: comisionesResult.totalCobrado, // Total cobrado del cobrador
         clientesAtrasados,
-        porcentajeComision,
-        comisionTotal,
-        comisionMes,
-        comisionHoy,
-        totalCobrado,
+        porcentajeComision: comisionesResult.porcentajeComision,
+        comisionTotal: comisionesResult.comisionTotal,
+        comisionMes: comisionesResult.comisionMes,
+        comisionHoy: comisionesResult.comisionHoy,
+        totalCobrado: comisionesResult.totalCobrado,
       });
     } catch (error) {
       console.error('Error loading cobrador data:', error);
