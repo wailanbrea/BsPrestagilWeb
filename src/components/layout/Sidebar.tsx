@@ -8,11 +8,14 @@ import {
   Wallet, 
   Shield, 
   UserCircle, 
-  FileText 
+  FileText,
+  ChartBar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/hooks/useAuth';
 
-const menuItems = [
+// ⭐ Menú para PRESTAMISTAS (acceso completo)
+const prestamistasMenuItems = [
   {
     title: 'Dashboard',
     href: '/dashboard',
@@ -50,9 +53,39 @@ const menuItems = [
   },
 ];
 
+// ⭐ Menú para COBRADORES (limitado, sin Settings)
+const cobradoresMenuItems = [
+  {
+    title: 'Mi Dashboard',
+    href: '/cobrador/dashboard',
+    icon: ChartBar,
+  },
+  {
+    title: 'Clientes',
+    href: '/clientes',
+    icon: Users,
+  },
+  {
+    title: 'Préstamos',
+    href: '/prestamos',
+    icon: CreditCard,
+  },
+  {
+    title: 'Pagos',
+    href: '/pagos',
+    icon: Wallet,
+  },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { usuario } = useAuth(); // ⭐ Obtener usuario con rol
+  
+  // ⭐ Determinar qué menú mostrar según el rol
+  const menuItems = usuario?.rol === 'COBRADOR' 
+    ? cobradoresMenuItems 
+    : prestamistasMenuItems;
 
   return (
     <div className="w-64 bg-background border-r min-h-screen flex flex-col">
@@ -63,7 +96,10 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">BsPrestagil</h1>
-            <p className="text-xs text-muted-foreground">Sistema de Préstamos</p>
+            {/* ⭐ NUEVO: Mostrar rol del usuario */}
+            <p className="text-xs text-muted-foreground">
+              {usuario?.rol === 'COBRADOR' ? 'Cobrador' : 'Administrador'}
+            </p>
           </div>
         </div>
       </div>

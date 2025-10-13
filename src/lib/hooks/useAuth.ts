@@ -145,6 +145,20 @@ export function useAuth() {
     }
   };
 
+  // ⭐ NUEVAS FUNCIONES: Helpers para verificar roles
+  const getUserRole = (): string => {
+    return usuario?.rol || 'PRESTAMISTA';
+  };
+
+  const isUserCobrador = (): boolean => {
+    return usuario?.rol === 'COBRADOR';
+  };
+
+  const isUserPrestamista = (): boolean => {
+    const rol = usuario?.rol || 'PRESTAMISTA';
+    return rol === 'PRESTAMISTA' || rol === 'ADMIN';
+  };
+
   return {
     user,
     usuario,
@@ -155,6 +169,10 @@ export function useAuth() {
     signOut,
     resetPassword,
     changePassword,
+    // ⭐ NUEVOS: Helpers de roles
+    getUserRole,
+    isUserCobrador,
+    isUserPrestamista,
   };
 }
 

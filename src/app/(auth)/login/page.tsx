@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ThemeSelector } from '@/components/theme-selector';
 import { CreditCard } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +32,16 @@ export default function LoginPage() {
       if (result.requirePasswordChange) {
         router.push('/cambiar-password');
       } else {
-        router.push('/dashboard');
+        // ⭐ NUEVO: Obtener el rol del usuario para redirigir
+        const userDoc = await getDoc(doc(db, 'usuarios', result.user.uid));
+        const userRole = userDoc.data()?.rol || 'PRESTAMISTA';
+        
+        // Redirigir según el rol
+        if (userRole === 'COBRADOR') {
+          router.push('/cobrador/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión');
