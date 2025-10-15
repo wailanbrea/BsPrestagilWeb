@@ -24,24 +24,12 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Prestamo } from '@/types/prestamo';
+import { Prestamo, Cuota } from '@/types/prestamo';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
-interface Cuota {
-  id: string;
-  adminId: string;
-  prestamoId: string;
-  numeroCuota: number;
-  fechaVencimiento: number;
-  montoCuotaMinimo: number;
-  montoPagado?: number;
+interface CuotaExtendida extends Cuota {
   saldoCuota: number;
-  estado: 'PENDIENTE' | 'PARCIAL' | 'PAGADA' | 'VENCIDA';
-  montoACapital: number;
-  montoAInteres: number;
-  capitalPendienteInicio: number;
-  capitalPendienteFinal: number;
 }
 
 interface Distribucion {
@@ -63,10 +51,10 @@ export default function NuevoPagoPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [prestamo, setPrestamo] = useState<Prestamo | null>(null);
-  const [cuotas, setCuotas] = useState<Cuota[]>([]);
+  const [cuotas, setCuotas] = useState<CuotaExtendida[]>([]);
   
   // Estados del formulario
-  const [cuotaSeleccionada, setCuotaSeleccionada] = useState<Cuota | null>(null);
+  const [cuotaSeleccionada, setCuotaSeleccionada] = useState<CuotaExtendida | null>(null);
   const [montoPagado, setMontoPagado] = useState('');
   const [montoMora, setMontoMora] = useState('0');
   const [metodoPago, setMetodoPago] = useState('EFECTIVO');
@@ -83,7 +71,7 @@ export default function NuevoPagoPage() {
   }, [montoPagado, cuotaSeleccionada]);
 
   // Función para calcular distribución
-  function calcularDistribucion(monto: number, cuota: Cuota): Distribucion {
+  function calcularDistribucion(monto: number, cuota: CuotaExtendida): Distribucion {
     // Usar la distribución del cronograma (ya viene en la cuota)
     const interesProyectado = cuota.montoAInteres;
     const capitalProyectado = cuota.montoACapital;
@@ -183,7 +171,7 @@ export default function NuevoPagoPage() {
             ...data,
             montoPagado,
             saldoCuota: Math.max(saldoCuota, 0),
-          } as Cuota;
+          } as CuotaExtendida;
         });
         setCuotas(cuotasData);
         
@@ -377,16 +365,16 @@ export default function NuevoPagoPage() {
       </div>
 
       {/* Información del Préstamo */}
-      <Card>
-        <CardHeader>
+        <Card>
+          <CardHeader>
           <CardTitle>Información del Préstamo</CardTitle>
-        </CardHeader>
+          </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <Label className="text-muted-foreground">Cliente</Label>
               <p className="font-medium">{prestamo.clienteNombre}</p>
-            </div>
+              </div>
             <div>
               <Label className="text-muted-foreground">Monto original</Label>
               <p className="font-medium">${prestamo.montoOriginal.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
@@ -396,7 +384,7 @@ export default function NuevoPagoPage() {
               <p className="text-red-600 font-bold text-lg">
                 ${prestamo.capitalPendiente.toLocaleString('es-MX', {minimumFractionDigits: 2})}
               </p>
-            </div>
+                    </div>
             <div>
               <Label className="text-muted-foreground">Tasa de interés</Label>
               <p className="font-medium">{prestamo.tasaInteresPorPeriodo}% {frecuenciaTexto}</p>
@@ -406,21 +394,21 @@ export default function NuevoPagoPage() {
               <p className="font-medium">
                 {prestamo.tipoAmortizacion === 'ALEMAN' ? 'Alemán (Capital Fijo)' : 'Francés (Cuota Fija)'}
               </p>
-            </div>
+                </div>
             <div>
               <Label className="text-muted-foreground">Cuotas pagadas</Label>
               <p className="font-medium">{prestamo.cuotasPagadas || 0} de {prestamo.numeroCuotas}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  </div>
+              </div>
+          </CardContent>
+        </Card>
 
       {/* Formulario de Pago */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles del Pago</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalles del Pago</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
           {/* Selección de Cuota */}
           <div>
             <Label htmlFor="cuota">Seleccionar cuota a pagar *</Label>
@@ -456,7 +444,7 @@ export default function NuevoPagoPage() {
                           <span className={`text-sm font-medium ${estadoColor}`}>
                             {cuota.estado}
                           </span>
-                        </div>
+              </div>
                       </SelectItem>
                     );
                   })}
@@ -467,38 +455,38 @@ export default function NuevoPagoPage() {
                 Saldo de la cuota: ${cuotaSeleccionada.saldoCuota.toFixed(2)}
               </p>
             )}
-          </div>
+            </div>
 
           {/* Monto a Pagar */}
           <div>
             <Label htmlFor="monto">Monto a pagar *</Label>
-            <Input
+                <Input
               id="monto"
-              type="number"
-              step="0.01"
+                  type="number"
+                  step="0.01"
               min="0.01"
-              placeholder="0.00"
+                  placeholder="0.00"
               value={montoPagado}
               onChange={(e) => setMontoPagado(e.target.value)}
               className="text-lg font-semibold"
-            />
-          </div>
+                />
+              </div>
 
           {/* Método de Pago */}
           <div>
             <Label htmlFor="metodoPago">Método de pago *</Label>
             <Select value={metodoPago} onValueChange={setMetodoPago}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                 <SelectItem value="EFECTIVO">💵 Efectivo</SelectItem>
                 <SelectItem value="TRANSFERENCIA">🏦 Transferencia</SelectItem>
                 <SelectItem value="CHEQUE">📄 Cheque</SelectItem>
                 <SelectItem value="OTRO">➕ Otro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
           {/* Mora */}
           <div>
@@ -527,21 +515,21 @@ export default function NuevoPagoPage() {
               value={numeroRecibo}
               onChange={(e) => setNumeroRecibo(e.target.value)}
             />
-          </div>
+            </div>
 
           {/* Notas */}
           <div>
-            <Label htmlFor="notas">Notas (opcional)</Label>
+              <Label htmlFor="notas">Notas (opcional)</Label>
             <Textarea
-              id="notas"
+                id="notas"
               placeholder="Comentarios adicionales sobre el pago..."
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               rows={3}
-            />
-          </div>
-        </CardContent>
-      </Card>
+              />
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Vista Previa del Pago */}
       {cuotaSeleccionada && montoPagado && distribucion && (
@@ -620,15 +608,15 @@ export default function NuevoPagoPage() {
 
       {/* Botones de Acción */}
       <div className="flex gap-3 justify-end">
-        <Button
-          variant="outline"
-          onClick={() => router.back()}
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
           disabled={loading}
-        >
-          Cancelar
-        </Button>
+          >
+            Cancelar
+          </Button>
         
-        <Button
+          <Button 
           onClick={registrarPago}
           disabled={loading || !cuotaSeleccionada || !montoPagado || parseFloat(montoPagado) <= 0}
           className="bg-green-600 hover:bg-green-700"
@@ -644,8 +632,8 @@ export default function NuevoPagoPage() {
               Registrar Pago
             </>
           )}
-        </Button>
-      </div>
+          </Button>
+        </div>
     </div>
   );
 }
