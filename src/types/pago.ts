@@ -1,6 +1,6 @@
 // src/types/pago.ts
 
-export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'OTRO';
+export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'TARJETA' | 'OTRO';
 
 export interface Pago {
   // Identificación
@@ -28,10 +28,11 @@ export interface Pago {
   capitalPendienteDespues: number;    // Capital después del pago: 9500.00
   
   // Detalles de la Transacción
-  metodoPago: MetodoPago;             // "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "OTRO"
+  metodoPago: MetodoPago;             // "EFECTIVO" | "TRANSFERENCIA" | "CHEQUE" | "TARJETA" | "OTRO"
   recibidoPor: string;                // Email del usuario que recibió el pago
   notas: string;                      // Observaciones
-  reciboUrl: string;                  // URL del recibo PDF (opcional)
+  numeroRecibo?: string;              // Número de recibo (opcional)
+  reciboUrl?: string;                 // URL del recibo PDF (opcional)
   
   // Sincronización
   pendingSync?: boolean;

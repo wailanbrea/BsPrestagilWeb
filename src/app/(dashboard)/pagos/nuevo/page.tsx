@@ -226,24 +226,30 @@ export default function NuevoPagoPage() {
   }
 
   // Registrar pago
-  async function registrarPago() {
+  async function registrarPagoHandler() {
+    console.log('🔵 Iniciando registro de pago...');
+    
     // Validar
     const validacion = validarPago();
     if (!validacion.valido) {
+      console.log('❌ Validación fallida:', validacion.error);
       toast.error(validacion.error);
       return;
     }
     
     if (!prestamo || !cuotaSeleccionada || !usuario || !distribucion) {
+      console.log('❌ Faltan datos:', { prestamo: !!prestamo, cuotaSeleccionada: !!cuotaSeleccionada, usuario: !!usuario, distribucion: !!distribucion });
       toast.error('Faltan datos necesarios');
       return;
     }
 
     setLoading(true);
+    console.log('🔵 Loading iniciado');
     
     try {
       const monto = parseFloat(montoPagado);
       const mora = parseFloat(montoMora) || 0;
+      console.log('🔵 Montos:', { monto, mora });
       
       // Calcular días transcurridos
       const diasTranscurridos = Math.floor(
@@ -278,9 +284,12 @@ export default function NuevoPagoPage() {
       };
       
       // Guardar pago en Firestore
-      await addDoc(collection(db, 'pagos'), nuevoPago);
+      console.log('🔵 Guardando pago:', nuevoPago);
+      const pagoRef = await addDoc(collection(db, 'pagos'), nuevoPago);
+      console.log('✅ Pago guardado con ID:', pagoRef.id);
       
       // Actualizar la cuota
+      console.log('🔵 Actualizando cuota...');
       const montoPagadoCuota = (cuotaSeleccionada.montoPagado || 0) + monto;
       const saldoCuota = cuotaSeleccionada.saldoCuota - monto;
       const cuotaCompletada = saldoCuota <= 0.01;
@@ -292,8 +301,10 @@ export default function NuevoPagoPage() {
         fechaPago: cuotaCompletada ? Timestamp.now().toMillis() : cuotaSeleccionada.fechaPago || null,
         lastSyncTime: Timestamp.now().toMillis()
       });
+      console.log('✅ Cuota actualizada');
       
       // Actualizar el préstamo
+      console.log('🔵 Actualizando préstamo...');
       const nuevoCapitalPendiente = prestamo.capitalPendiente - distribucion.montoACapital;
       const prestamoCompletado = nuevoCapitalPendiente <= 0.01;
       
@@ -306,16 +317,24 @@ export default function NuevoPagoPage() {
         estado: prestamoCompletado ? 'COMPLETADO' : prestamo.estado,
         lastSyncTime: Timestamp.now().toMillis()
       });
+      console.log('✅ Préstamo actualizado');
       
       // Éxito
+      console.log('✅ Todo completado exitosamente');
       toast.success('✅ Pago registrado exitosamente');
       toast.success(`Capital: $${distribucion.montoACapital.toFixed(2)} | Interés: $${distribucion.montoAInteres.toFixed(2)}`);
-      router.push(`/prestamos/${prestamo.id}`);
+      
+      // Pequeño delay para que se vean los toasts antes de navegar
+      setTimeout(() => {
+        router.push(`/prestamos/${prestamo.id}`);
+      }, 1000);
       
     } catch (error: any) {
-      console.error('Error al registrar pago:', error);
-      toast.error('❌ Error al registrar el pago. Intente nuevamente.');
+      console.error('❌ Error al registrar pago:', error);
+      console.error('❌ Detalles del error:', error.message, error.code);
+      toast.error(`❌ Error: ${error.message || 'Error al registrar el pago'}`);
     } finally {
+      console.log('🔵 Finalizando...');
       setLoading(false);
     }
   }
@@ -619,8 +638,8 @@ export default function NuevoPagoPage() {
             Cancelar
           </Button>
         
-          <Button 
-          onClick={registrarPago}
+        <Button
+          onClick={registrarPagoHandler}
           disabled={loading || !cuotaSeleccionada || !montoPagado || parseFloat(montoPagado) <= 0}
           className="bg-green-600 hover:bg-green-700"
         >
