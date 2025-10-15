@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/hooks/useAuth';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { TipoGarantia } from '@/types/garantia';
+import { TipoGarantia, EstadoGarantia } from '@/types/garantia';
 import { toast } from 'sonner';
 
 export default function NuevaGarantiaPage() {
@@ -54,7 +54,7 @@ export default function NuevaGarantiaPage() {
         descripcion: formData.descripcion,
         valorEstimado: valorEstimado,
         fotosUrls: [],
-        estado: 'DISPONIBLE' as const,
+        estado: 'DISPONIBLE' as EstadoGarantia,
         fechaRegistro: Timestamp.now().toMillis(),
         notas: formData.notas || '',
         pendingSync: false,

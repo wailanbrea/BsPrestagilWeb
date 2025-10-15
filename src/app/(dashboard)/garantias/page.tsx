@@ -55,8 +55,9 @@ export default function GarantiasPage() {
 
   const estadisticas = {
     total: garantias.length,
-    retenidas: garantias.filter((g) => g.estado === 'RETENIDA').length,
-    devueltas: garantias.filter((g) => g.estado === 'DEVUELTA').length,
+    disponibles: garantias.filter((g) => g.estado === 'DISPONIBLE').length,
+    enUso: garantias.filter((g) => g.estado === 'EN_USO' || g.estado === 'RETENIDA').length,
+    liberadas: garantias.filter((g) => g.estado === 'LIBERADA' || g.estado === 'DEVUELTA').length,
     ejecutadas: garantias.filter((g) => g.estado === 'EJECUTADA').length,
     valorTotal: garantias.reduce((sum, g) => sum + (g.valorEstimado || 0), 0),
   };
@@ -95,29 +96,29 @@ export default function GarantiasPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retenidas</CardTitle>
+            <CardTitle className="text-sm font-medium">Disponibles</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{estadisticas.retenidas}</div>
-            <p className="text-xs text-muted-foreground">En posesión</p>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{estadisticas.disponibles}</div>
+            <p className="text-xs text-muted-foreground">Para asignar</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Devueltas</CardTitle>
+            <CardTitle className="text-sm font-medium">En Uso</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{estadisticas.devueltas}</div>
-            <p className="text-xs text-muted-foreground">Préstamo pagado</p>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{estadisticas.enUso}</div>
+            <p className="text-xs text-muted-foreground">Asignadas</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ejecutadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Liberadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{estadisticas.ejecutadas}</div>
-            <p className="text-xs text-muted-foreground">Vendidas por impago</p>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{estadisticas.liberadas}</div>
+            <p className="text-xs text-muted-foreground">Devueltas</p>
           </CardContent>
         </Card>
       </div>
@@ -184,10 +185,12 @@ export default function GarantiasPage() {
                   </div>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      garantia.estado === 'RETENIDA'
-                        ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'
-                        : garantia.estado === 'DEVUELTA'
+                      garantia.estado === 'DISPONIBLE'
                         ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400'
+                        : garantia.estado === 'EN_USO' || garantia.estado === 'RETENIDA'
+                        ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'
+                        : garantia.estado === 'LIBERADA' || garantia.estado === 'DEVUELTA'
+                        ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
                         : garantia.estado === 'EJECUTADA'
                         ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400'
                         : 'bg-secondary text-secondary-foreground'

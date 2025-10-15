@@ -1,7 +1,7 @@
 // src/types/garantia.ts
 
 // 🔄 Estados de la Garantía
-export type EstadoGarantia = 'RETENIDA' | 'DEVUELTA' | 'EJECUTADA';
+export type EstadoGarantia = 'DISPONIBLE' | 'EN_USO' | 'LIBERADA' | 'RETENIDA' | 'DEVUELTA' | 'EJECUTADA';
 
 // 🏷️ Tipos de Garantía
 export type TipoGarantia = 
