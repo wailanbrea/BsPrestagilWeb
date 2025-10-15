@@ -7,6 +7,7 @@ export type TipoAmortizacion = 'FRANCES' | 'ALEMAN';
 export interface Prestamo {
   // Identificación
   id: string;
+  adminId: string;                    // ID del administrador (multi-tenant)
   
   // Información del Cliente
   clienteId: string;
@@ -57,6 +58,7 @@ export interface Prestamo {
 
 export interface Cuota {
   id: string;
+  adminId: string;              // ID del administrador (multi-tenant)
   prestamoId: string;
   numeroCuota: number;
   fechaVencimiento: number;
@@ -70,4 +72,6 @@ export interface Cuota {
   fechaPago?: number;
   montoMora?: number;
 }
+
+
 

@@ -24,3 +24,5 @@ export { app }; // ⭐ Named export para Firebase Functions
 export default app;
 
 
+
+

@@ -85,6 +85,7 @@ export function useAuth() {
         nombre,
         email,
         rol: 'ADMIN',
+        adminId: result.user.uid, // Para ADMIN, adminId es su propio UID
         activo: true,
         fechaCreacion: Date.now(),
         porcentajeComision: 0,
@@ -159,11 +160,17 @@ export function useAuth() {
     return rol === 'PRESTAMISTA' || rol === 'ADMIN';
   };
 
+  // Obtener adminId (para ADMIN es su propio id, para otros es el id del admin)
+  const adminId = usuario?.adminId || user?.uid || null;
+  const rol = usuario?.rol || null;
+
   return {
     user,
     usuario,
     loading,
     error,
+    adminId,  // ✅ Nuevo: adminId para multi-tenant
+    rol,      // ✅ Nuevo: rol para facilitar verificaciones
     signIn,
     signUp,
     signOut,
@@ -175,5 +182,7 @@ export function useAuth() {
     isUserPrestamista,
   };
 }
+
+
 
 

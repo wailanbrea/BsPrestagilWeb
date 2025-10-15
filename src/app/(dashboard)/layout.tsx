@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useRealtimeSync } from '@/lib/hooks/useRealtimeSync';
 import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 
@@ -13,6 +14,9 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  
+  // ✅ Activar sincronización en tiempo real para todas las colecciones
+  useRealtimeSync();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,5 +48,7 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+
 
 

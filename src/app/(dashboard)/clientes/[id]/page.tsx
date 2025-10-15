@@ -2,20 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, User, Phone, Mail, MapPin, Calendar, TrendingUp, DollarSign, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, MapPin, Calendar, TrendingUp, DollarSign, FileText, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { obtenerEstadisticasCliente, type ObtenerEstadisticasClienteResult } from '@/lib/firebase/functions';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useClientes } from '@/lib/hooks/useClientes';
 
 export default function ClienteDetallePage() {
   const router = useRouter();
   const params = useParams();
   const clienteId = params.id as string;
+  const { rol } = useAuth();
+  const { eliminarCliente } = useClientes();
   
   const [data, setData] = useState<ObtenerEstadisticasClienteResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (clienteId) {
@@ -34,6 +41,26 @@ export default function ClienteDetallePage() {
       toast.error('Error al cargar información del cliente');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    // ✅ Verificar que solo ADMIN puede eliminar
+    if (rol !== 'ADMIN') {
+      toast.error('Solo los administradores pueden eliminar clientes');
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await eliminarCliente(clienteId);
+      toast.success('Cliente eliminado exitosamente');
+      router.push('/clientes');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al eliminar cliente');
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -72,6 +99,16 @@ export default function ClienteDetallePage() {
           <h1 className="text-3xl font-bold">{cliente.nombre}</h1>
           <p className="text-muted-foreground">Información detallada del cliente</p>
         </div>
+        {/* ✅ Botón de eliminar solo para ADMIN */}
+        {rol === 'ADMIN' && (
+          <Button 
+            variant="destructive" 
+            size="icon"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="h-5 w-5" />
+          </Button>
+        )}
       </div>
 
       {/* Información del Cliente */}
@@ -280,7 +317,42 @@ export default function ClienteDetallePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ✅ Diálogo de confirmación de eliminación */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar cliente?</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar a {cliente.nombre}? Esta acción no se puede deshacer.
+              {estadisticas.prestamosActivos > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  ⚠️ Este cliente tiene {estadisticas.prestamosActivos} préstamo(s) activo(s).
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+
 

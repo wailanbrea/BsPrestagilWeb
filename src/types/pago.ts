@@ -5,6 +5,7 @@ export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'OTRO';
 export interface Pago {
   // Identificación
   id: string;
+  adminId: string;                    // ID del administrador (multi-tenant)
   prestamoId: string;                 // FK → Prestamo
   cuotaId?: string;                   // FK → Cuota (vinculación opcional)
   numeroCuota: number;                // Número de cuota para reportes
@@ -37,4 +38,6 @@ export interface Pago {
   lastSyncTime?: number;
   firebaseId?: string;
 }
+
+
 

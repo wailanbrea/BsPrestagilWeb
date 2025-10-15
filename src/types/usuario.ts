@@ -5,6 +5,7 @@ export type RolUsuario = 'ADMIN' | 'COBRADOR' | 'SUPERVISOR' | 'PRESTAMISTA';
 export interface Usuario {
   // Identificación (Firebase Auth)
   id: string;                         // UID de Firebase Auth
+  adminId: string;                    // ID del administrador (para ADMIN = id, para otros = id del admin)
   
   // Información Personal
   nombre: string;                     // "Pedro Martínez"
@@ -32,4 +33,6 @@ export interface Usuario {
   lastSyncTime?: number;
   firebaseId?: string;
 }
+
+
 

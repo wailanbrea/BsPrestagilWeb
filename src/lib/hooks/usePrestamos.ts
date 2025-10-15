@@ -16,15 +16,25 @@ import {
 import { db } from '@/lib/firebase/config';
 import { Prestamo, TipoAmortizacion, FrecuenciaPago } from '@/types/prestamo';
 import { generarCronograma } from '@/lib/utils/amortizacion';
+import { useAuth } from './useAuth';
 
 export function usePrestamos() {
+  const { adminId } = useAuth();
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Sin orderBy para evitar requerir índice
-    const q = collection(db, 'prestamos');
+    if (!adminId) {
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Filtrar por adminId para multi-tenant
+    const q = query(
+      collection(db, 'prestamos'),
+      where('adminId', '==', adminId)
+    );
 
     const unsubscribe = onSnapshot(
       q,
@@ -48,7 +58,7 @@ export function usePrestamos() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [adminId]);
 
   const crearPrestamo = async (data: {
     clienteId: string;
@@ -64,6 +74,10 @@ export function usePrestamos() {
     notas?: string;
   }) => {
     try {
+      if (!adminId) {
+        throw new Error('No se pudo obtener el adminId');
+      }
+
       const fechaInicio = Date.now();
       const prestamoId = `prestamo_${Date.now()}`;
       
@@ -86,6 +100,7 @@ export function usePrestamos() {
       // Crear préstamo
       const prestamoRef = await addDoc(collection(db, 'prestamos'), {
         ...data,
+        adminId: adminId,  // ✅ Agregar adminId para multi-tenant
         capitalPendiente: data.montoOriginal,
         montoCuotaFija,
         cuotasPagadas: 0,
@@ -96,6 +111,7 @@ export function usePrestamos() {
         totalInteresesPagados: 0,
         totalCapitalPagado: 0,
         totalMorasPagadas: 0,
+        pendingSync: false,  // ✅ Agregar pendingSync
         lastSyncTime: Timestamp.now().toMillis(),
       });
       
@@ -110,9 +126,13 @@ export function usePrestamos() {
         fechaInicio
       );
       
-      // Guardar cuotas en Firestore
+      // Guardar cuotas en Firestore con adminId
       const cuotasPromises = cuotas.map(cuota =>
-        addDoc(collection(db, 'cuotas'), cuota)
+        addDoc(collection(db, 'cuotas'), {
+          ...cuota,
+          adminId: adminId,  // ✅ Agregar adminId a las cuotas
+          pendingSync: false,
+        })
       );
       await Promise.all(cuotasPromises);
       
@@ -144,5 +164,7 @@ export function usePrestamos() {
     actualizarPrestamo,
   };
 }
+
+
 
 

@@ -17,15 +17,25 @@ import {
 import { db } from '@/lib/firebase/config';
 import { Cliente } from '@/types/cliente';
 import { uploadClientePhoto } from '@/lib/firebase/storage';
+import { useAuth } from './useAuth';
 
 export function useClientes() {
+  const { adminId } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Sin orderBy para evitar requerir índice
-    const q = collection(db, 'clientes');
+    if (!adminId) {
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Filtrar por adminId para multi-tenant
+    const q = query(
+      collection(db, 'clientes'),
+      where('adminId', '==', adminId)
+    );
 
     const unsubscribe = onSnapshot(
       q,
@@ -51,7 +61,7 @@ export function useClientes() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [adminId]);
 
   const crearCliente = async (data: {
     nombre: string;
@@ -62,10 +72,15 @@ export function useClientes() {
     foto?: File;
   }) => {
     try {
+      if (!adminId) {
+        throw new Error('No se pudo obtener el adminId');
+      }
+
       let fotoUrl = undefined;
       
       // Crear cliente primero para obtener el ID
       const clienteRef = await addDoc(collection(db, 'clientes'), {
+        adminId: adminId,  // ✅ Agregar adminId para multi-tenant
         nombre: data.nombre,
         telefono: data.telefono || '',
         direccion: data.direccion || '',
@@ -75,6 +90,7 @@ export function useClientes() {
         fechaRegistro: Timestamp.now().toMillis(),
         prestamosActivos: 0,
         historialPagos: 'AL_DIA',
+        pendingSync: false,  // ✅ Agregar pendingSync
         lastSyncTime: Timestamp.now().toMillis(),
       });
       
@@ -139,5 +155,7 @@ export function useClientes() {
     eliminarCliente,
   };
 }
+
+
 
 

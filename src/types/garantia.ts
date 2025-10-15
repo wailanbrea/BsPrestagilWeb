@@ -15,6 +15,7 @@ export type TipoGarantia =
 export interface Garantia {
   // Identificación
   id: string;
+  adminId: string;                    // ID del administrador (multi-tenant)
   
   // Información del Artículo
   tipo: TipoGarantia;                 // "VEHICULO" | "ELECTRONICO" | "JOYA" | etc.
@@ -41,4 +42,6 @@ export interface Garantia {
   clienteNombre?: string;
   prestamoId?: string;
 }
+
+
 

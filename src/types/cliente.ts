@@ -11,6 +11,7 @@ export interface Referencia {
 export interface Cliente {
   // Identificación
   id: string;
+  adminId: string;              // ID del administrador (multi-tenant)
   
   // Información Personal
   nombre: string;                // "Juan Pérez García"
