@@ -22,7 +22,8 @@ export function generarCronograma(
   numeroCuotas: number,
   tipoAmortizacion: TipoAmortizacion,
   frecuenciaPago: FrecuenciaPago,
-  fechaInicio: number
+  fechaInicio: number,
+  adminId: string = ''
 ): Cuota[] {
   const cuotas: Cuota[] = [];
   const tasaDecimal = tasaPeriodo / 100;
@@ -52,6 +53,7 @@ export function generarCronograma(
       
       cuotas.push({
         id: `${prestamoId}_cuota_${i}`,
+        adminId: adminId,
         prestamoId,
         numeroCuota: i,
         fechaVencimiento,
@@ -84,6 +86,7 @@ export function generarCronograma(
       
       cuotas.push({
         id: `${prestamoId}_cuota_${i}`,
+        adminId: adminId,
         prestamoId,
         numeroCuota: i,
         fechaVencimiento,

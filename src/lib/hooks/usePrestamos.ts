@@ -123,14 +123,14 @@ export function usePrestamos() {
         data.numeroCuotas,
         data.tipoAmortizacion,
         data.frecuenciaPago,
-        fechaInicio
+        fechaInicio,
+        adminId  // ✅ Pasar adminId para las cuotas
       );
       
-      // Guardar cuotas en Firestore con adminId
+      // Guardar cuotas en Firestore (ya incluyen adminId)
       const cuotasPromises = cuotas.map(cuota =>
         addDoc(collection(db, 'cuotas'), {
           ...cuota,
-          adminId: adminId,  // ✅ Agregar adminId a las cuotas
           pendingSync: false,
         })
       );
