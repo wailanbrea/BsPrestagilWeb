@@ -427,11 +427,14 @@ export default function NuevoPagoPage() {
                   .filter(c => c.estado !== 'PAGADA')
                   .map(cuota => {
                     const vencimiento = new Date(cuota.fechaVencimiento);
-                    const estadoColor = {
+                    const estadoColor: Record<string, string> = {
                       'PENDIENTE': 'text-blue-600',
                       'PARCIAL': 'text-orange-600',
-                      'VENCIDA': 'text-red-600'
-                    }[cuota.estado] || '';
+                      'VENCIDA': 'text-red-600',
+                      'ATRASADA': 'text-red-600',
+                      'PAGADA': 'text-green-600'
+                    };
+                    const color = estadoColor[cuota.estado] || 'text-muted-foreground';
                     
                     return (
                       <SelectItem key={cuota.id} value={cuota.id}>
@@ -441,7 +444,7 @@ export default function NuevoPagoPage() {
                           <span className="text-sm text-muted-foreground">
                             {vencimiento.toLocaleDateString('es-MX')}
                           </span>
-                          <span className={`text-sm font-medium ${estadoColor}`}>
+                          <span className={`text-sm font-medium ${color}`}>
                             {cuota.estado}
                           </span>
               </div>
