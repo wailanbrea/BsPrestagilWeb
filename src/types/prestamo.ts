@@ -67,10 +67,14 @@ export interface Cuota {
   montoCuotaMinimo: number;
   capitalPendienteInicio: number;
   capitalPendienteFinal: number;
-  estado: 'PENDIENTE' | 'PAGADA' | 'PARCIAL' | 'ATRASADA';
+  estado: 'PENDIENTE' | 'PAGADA' | 'PARCIAL' | 'VENCIDA' | 'ATRASADA';
   montoPagado?: number;
   fechaPago?: number;
   montoMora?: number;
+  saldoCuota?: number;
+  pendingSync?: boolean;
+  lastSyncTime?: number;
+  firebaseId?: string;
 }
 
 
