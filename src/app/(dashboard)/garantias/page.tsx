@@ -8,19 +8,29 @@ import { Plus, Search, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Garantia } from '@/types/garantia';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function GarantiasPage() {
   const router = useRouter();
+  const { adminId } = useAuth();
   const [garantias, setGarantias] = useState<Garantia[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Sin orderBy para evitar requerir índice
-    const q = collection(db, 'garantias');
+    if (!adminId) {
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Filtrar por adminId para multi-tenant
+    const q = query(
+      collection(db, 'garantias'),
+      where('adminId', '==', adminId)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const garantiasData = snapshot.docs.map((doc) => ({
@@ -36,7 +46,7 @@ export default function GarantiasPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [adminId]);
 
   const garantiasFiltradas = garantias.filter((garantia) =>
     garantia.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
